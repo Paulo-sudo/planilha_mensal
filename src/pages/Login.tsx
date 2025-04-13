@@ -33,7 +33,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-indigo-950">
+    <div className="min-h-screen flex items-center justify-center bg-indigo-950 p-4">
       <form
         onSubmit={handleLogin}
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
