@@ -20,7 +20,6 @@ type Debit = {
 
 export default function Faturamento() {
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState<string | null>(null);
   const [debits, setDebits] = useState<Debit[]>([]);
   const [idMonth, setIdMonth] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, string>>(
@@ -152,7 +151,7 @@ export default function Faturamento() {
         return;
       }
 
-      setUserName(data.user.email ?? null);
+
       const monthId = await ensureMonthExists();
 
       if (monthId) {
