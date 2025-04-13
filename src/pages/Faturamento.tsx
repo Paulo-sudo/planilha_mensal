@@ -32,6 +32,8 @@ export default function Faturamento() {
   const [totalNaoPagos, setTotalNaoPagos] = useState<number>(0);
   const [anticipateCount, setAnticipateCount] = useState<number>(1);
 
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
   const [addDebit, setAddDebit] = useState(false);
   const navigate = useNavigate();
 
@@ -403,10 +405,26 @@ export default function Faturamento() {
                       )}
 
                       {/* Botão Excluir */}
+                      {confirmDelete && (
+                        <Background>
+                          <div className="bg-white max-w-[350px] p-6 rounded mx-auto mt-16 text-center ">
+                            <p className="font-bold text-xl text-indigo-900">Confirma a Exclusão do Débito?</p>
+                            <div className="flex justify-between mt-8 px-8">
+                              <button onClick={()=>{
+                                handleDelete(confirmDelete);
+                                setConfirmDelete(null)
+                              }} className="p-2 font-bold text-white bg-green-600 rounded w-[70px]">SIM</button>
+                              <button onClick={()=>{
+                                setConfirmDelete(null)}
+                              } className="p-2 font-bold text-white bg-red-600 rounded w-[70px]">NÃO</button>
+                            </div>
+                          </div>
+                        </Background>
+                      )}
 
                       <AiFillDelete
                         className="text-red-800 h-[20px] w-[20px] cursor-pointer"
-                        onClick={() => handleDelete(debit.id)}
+                        onClick={() => setConfirmDelete(debit.id) }
                       />
                     </td>
                   </tr>
