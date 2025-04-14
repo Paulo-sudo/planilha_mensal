@@ -12,6 +12,7 @@ function App() {
           {/* Página "Not Found" como rota padrão */}
 
           <Route path="/" element={<Login/>} />
+          <Route path="/login" element={<Login/>} />
           <Route path="/faturamento" element={<Faturamento/>} />
         </Routes>
       </Router>

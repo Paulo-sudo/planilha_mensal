@@ -31,7 +31,9 @@ export default function Faturamento() {
   const [totalPagos, setTotalPagos] = useState<number>(0);
   const [totalNaoPagos, setTotalNaoPagos] = useState<number>(0);
   const [anticipateCount, setAnticipateCount] = useState<number>(1);
-
+  const [futureDebits, setFutureDebits] = useState<Debit[]>([]);
+  const [futureValue, setFutureValue] = useState<number>(0);
+  const [showFuture, setShowFuture] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const [addDebit, setAddDebit] = useState(false);
@@ -80,17 +82,54 @@ export default function Faturamento() {
     }
   };
 
+  const handleFutureDebits = async () => {
+    const data = debits;
+    let FutureValue = 0;
+      const grouped: Record<string, any[]> = {};
+      data.forEach((debit) => {
+        const key = `${debit.description}-${debit.value}-${debit.installments}`;
+        grouped[key] = grouped[key] || [];
+        grouped[key].push(debit);
+      });
+      const futureDebits = Object.values(grouped).flatMap((debits) => {
+        const [sample] = debits;
+        if (!sample.installments && !sample.recurring) return [];
+
+        const highestCurrent = Math.max(...debits.map((d) => d.current || 0));
+
+        if (
+          sample.recurring ||
+          (sample.installments && highestCurrent < sample.installments)
+        ) {
+          FutureValue += sample.value;
+          return [
+            {
+              ...sample,
+              current: sample.installments ? highestCurrent + 1 : null,
+              month_id: "proximo", // você pode trocar isso por um estado tipo "preview"
+              preview: true,
+            },
+          ];
+        }
+
+        return [];
+      });
+
+      setFutureValue(FutureValue);
+      setFutureDebits(futureDebits); 
+  }
+
   const fetchDebits = async () => {
     const { data, error } = await supabase
       .from("debits")
       .select("*")
       .eq("month_id", idMonth)
-      .order("created_at", { ascending: false }); // ou o ID do mês atual
+      .order("created_at", { ascending: false });
 
     if (!error && data) {
       setDebits(data);
 
-      // Cálculo dos totais
+      // Totais do mês atual
       const total = data.reduce((acc, d) => acc + (d.value || 0), 0);
       const totalPagos = data
         .filter((d) => d.paid)
@@ -100,6 +139,7 @@ export default function Faturamento() {
       setTotal(total);
       setTotalPagos(totalPagos);
       setTotalNaoPagos(totalNaoPagos);
+
     } else {
       console.error("Erro ao buscar débitos:", error);
       setDebits([]);
@@ -153,7 +193,6 @@ export default function Faturamento() {
         return;
       }
 
-
       const monthId = await ensureMonthExists();
 
       if (monthId) {
@@ -201,8 +240,8 @@ export default function Faturamento() {
   return (
     <div className="p-4 bg-indigo-950 h-[100%] min-h-screen w-[100%] py-16">
       <div className="p-6 bg-white rounded-md max-w-[1300px] mx-auto py-16">
-        <p className="text-2xl font-bold mb-4 text-indigo-900 text-center">
-          DEBITOS MENSAIS -{" "}
+        <p className="text-2xl font-bold  text-indigo-900 text-center">
+          DEBITOS MENSAIS </p><p className="text-2xl font-bold mb-4 text-indigo-900 text-center">
           {new Date()
             .toLocaleString("pt-BR", { month: "long", year: "numeric" })
             .toUpperCase()}
@@ -239,12 +278,27 @@ export default function Faturamento() {
         </div>
 
         {!addDebit ? (
-          <button
-            onClick={() => setAddDebit(true)}
-            className="p-4 text-white bg-blue-700 font-bold rounded "
-          >
-            ADICIONAR DÉBITO
-          </button>
+          <div className="mb-4 mt-6 flex justify-between gap-2">
+
+            <button
+              onClick={() => setAddDebit(true)}
+              className="p-2 text-white bg-blue-700 font-bold rounded "
+            >
+              ADICIONAR DÉBITO
+            </button>
+                    {!showFuture && (
+                      <button
+                        onClick={async () => {
+                          await handleFutureDebits();
+                          setShowFuture(true);
+                        }}
+                        className=" px-2 py-2 bg-yellow-600 text-white font-bold rounded"
+                      >
+                        PREVIEW <br/>
+                        {new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase().replace(' DE ', ' / ')}
+                      </button>
+                    )}
+          </div>
         ) : (
           <Background>
             <DebitForm
@@ -254,9 +308,74 @@ export default function Faturamento() {
             />
           </Background>
         )}
-        <h2 className="text-xl font-semibold mb-4 mt-6 text-indigo-900">
+
+
+        <h2 className="text-xl font-semibold  text-indigo-900">
           SEUS DÉBITOS
         </h2>
+
+        {showFuture && (
+          <Background>
+            <div className="mt-12 max-w-[650px]   mx-auto p-4 bg-white rounded">
+              <p className="text-lg font-bold text-center text-indigo-800">
+                Próximo Faturamento (Simulado)
+              </p>
+              <p className="text-xl mb-2 font-bold text-center text-indigo-800">{new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase().replace(' DE ', ' / ')}</p>
+              <ul className="space-y-2">
+                <div className="w-full mt-4 overflow-x-auto">
+                  <table className="min-w-full border-collapse bg-white shadow rounded-lg">
+                    <thead className="">
+                      <tr className="bg-indigo-950 text-white ">
+                        <th className="px-4 py-2 min-w-[300px] text-left">
+                          Descrição
+                        </th>
+                        <th className="px-4 py-2 text-left">Valor</th>
+                        <th className="px-4 py-2 text-left min-w-[150px]">
+                          Parcela
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {futureDebits.map((debit) => (
+                        <tr
+                          key={debit.id}
+                          className={
+                              "border-t border-gray-400 bg-gray-200"
+                          }
+                        >
+                          <td className="px-4 py-2 font-medium  uppercase max-w-xs break-words">
+                            {debit.description}
+                          </td>
+                          <td className="px-4 py-2 font-medium  uppercase max-w-xs break-words">
+                            <p className={"font-bold "}>
+                              {debit.value.toLocaleString("pt-br", {
+                                style: "currency",
+                                currency: "BRL",
+                              })}
+                            </p>
+                          </td>
+                          <td className="px-4 py-2">
+                            {debit.installments
+                              ? `Parcela ${debit.current}/${debit.installments}`
+                              : "Avulso"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ul>
+              <div className="p-4 text-right">
+                <p className="font-bold text-lg text-orange-700">{futureValue.toLocaleString("pt-br", {
+                                style: "currency",
+                                currency: "BRL",
+                              })}</p>
+
+              </div>
+              <button onClick={()=>setShowFuture(false)} className="bg-yellow-600 p-2 text-white font-bold hover:bg-yellow-800 rounded ">FECHAR</button>
+            </div>
+          </Background>
+        )}
 
         {debits.length === 0 ? (
           <p className="text-gray-500">Nenhuma dívida cadastrada.</p>
@@ -278,7 +397,14 @@ export default function Faturamento() {
               </thead>
               <tbody>
                 {debits.map((debit) => (
-                  <tr key={debit.id} className={debit.paid ? "border-t border-gray-400 bg-green-200" : "border-t border-gray-400 bg-white"}>
+                  <tr
+                    key={debit.id}
+                    className={
+                      debit.paid
+                        ? "border-t border-gray-400 bg-green-200"
+                        : "border-t border-gray-400 bg-white"
+                    }
+                  >
                     <td className="px-4 py-2">
                       <input
                         type="checkbox"
@@ -408,15 +534,27 @@ export default function Faturamento() {
                       {confirmDelete && (
                         <Background>
                           <div className="bg-white max-w-[350px] p-6 rounded mx-auto mt-16 text-center ">
-                            <p className="font-bold text-xl text-indigo-900">Confirma a Exclusão do Débito?</p>
+                            <p className="font-bold text-xl text-indigo-900">
+                              Confirma a Exclusão do Débito?
+                            </p>
                             <div className="flex justify-between mt-8 px-8">
-                              <button onClick={()=>{
-                                handleDelete(confirmDelete);
-                                setConfirmDelete(null)
-                              }} className="p-2 font-bold text-white bg-green-600 rounded w-[70px]">SIM</button>
-                              <button onClick={()=>{
-                                setConfirmDelete(null)}
-                              } className="p-2 font-bold text-white bg-red-600 rounded w-[70px]">NÃO</button>
+                              <button
+                                onClick={() => {
+                                  handleDelete(confirmDelete);
+                                  setConfirmDelete(null);
+                                }}
+                                className="p-2 font-bold text-white bg-green-600 rounded w-[70px]"
+                              >
+                                SIM
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setConfirmDelete(null);
+                                }}
+                                className="p-2 font-bold text-white bg-red-600 rounded w-[70px]"
+                              >
+                                NÃO
+                              </button>
                             </div>
                           </div>
                         </Background>
@@ -424,7 +562,7 @@ export default function Faturamento() {
 
                       <AiFillDelete
                         className="text-red-800 h-[20px] w-[20px] cursor-pointer"
-                        onClick={() => setConfirmDelete(debit.id) }
+                        onClick={() => setConfirmDelete(debit.id)}
                       />
                     </td>
                   </tr>
