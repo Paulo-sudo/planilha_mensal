@@ -5,6 +5,8 @@ import { ensureMonthExists } from "../utils/ensureMonthExists";
 import DebitForm from "../components/forms/debit_form";
 import Background from "../components/background";
 import { AiFillDelete } from "react-icons/ai";
+import { PiArrowsDownUpBold } from "react-icons/pi";
+
 
 type Debit = {
   id: string;
@@ -35,9 +37,51 @@ export default function Faturamento() {
   const [futureValue, setFutureValue] = useState<number>(0);
   const [showFuture, setShowFuture] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [sort, setSort]= useState<string | null>('created_at-D');
 
   const [addDebit, setAddDebit] = useState(false);
   const navigate = useNavigate();
+
+  const handleSort = async (filter:string)=>{
+    console.log(filter, sort);
+    const a = sort?.split('-');
+    if(a && a[0] == filter){
+      let b;
+      a[1]== "D" ? b = "A" : b= "D"
+      setSort(`${filter}-${b}`)
+    } else if (a && a[0] != filter){
+      setSort(`${filter}-D`)
+    } else {
+      setSort(`${filter}-D`)
+    }
+    
+  }
+
+  useEffect(() => {
+    if (!debits.length || !sort) return;
+  
+    const [field, direction] = sort.split('-');
+    const sorted = [...debits].sort((a:any, b:any) => {
+      const aValue = field === 'due_date' ? Number(a[field]) : a[field];
+      const bValue = field === 'due_date' ? Number(b[field]) : b[field];
+    
+      if (aValue < bValue) return direction === 'D' ? 1 : -1;
+      if (aValue > bValue) return direction === 'D' ? -1 : 1;
+      return 0;
+    });
+  
+    // Recalcular os totais após ordenar
+    const total = sorted.reduce((acc, d) => acc + (d.value || 0), 0);
+    const totalPagos = sorted
+      .filter((d) => d.paid)
+      .reduce((acc, d) => acc + (d.value || 0), 0);
+    const totalNaoPagos = total - totalPagos;
+  
+    setDebits(sorted);
+    setTotal(total);
+    setTotalPagos(totalPagos);
+    setTotalNaoPagos(totalNaoPagos);
+  }, [sort]);
 
   const handleTogglePaid = async (debitId: string, paid: boolean) => {
     const { error } = await supabase
@@ -120,11 +164,12 @@ export default function Faturamento() {
   }
 
   const fetchDebits = async () => {
+    const a:any = sort?.split('-');
     const { data, error } = await supabase
       .from("debits")
       .select("*")
       .eq("month_id", idMonth)
-      .order("created_at", { ascending: false });
+      .order(a[0], { ascending: a[1] == 'D' ? false : true });
 
     if (!error && data) {
       setDebits(data);
@@ -292,7 +337,7 @@ export default function Faturamento() {
                           await handleFutureDebits();
                           setShowFuture(true);
                         }}
-                        className=" px-2 py-2 bg-yellow-600 text-white font-bold rounded"
+                        className=" px-2 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded"
                       >
                         PREVIEW <br/>
                         {new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase().replace(' DE ', ' / ')}
@@ -316,7 +361,7 @@ export default function Faturamento() {
 
         {showFuture && (
           <Background>
-            <div className="mt-12 max-w-[650px]   mx-auto p-4 bg-white rounded">
+            <div className="mt-14 max-w-[650px]   mx-auto p-4 bg-white rounded">
               <p className="text-lg font-bold text-center text-indigo-800">
                 Próximo Faturamento (Simulado)
               </p>
@@ -384,14 +429,14 @@ export default function Faturamento() {
             <table className="min-w-full border-collapse bg-white shadow rounded-lg">
               <thead>
                 <tr className="bg-indigo-950 text-white">
-                  <th className="px-4 py-2 w-[10px] text-left">Pago</th>
-                  <th className="px-4 py-2 min-w-[350px] text-left">
+                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">Pago <PiArrowsDownUpBold onClick={()=>{handleSort('paid')}} className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"/></th>
+                  <th className="border-r border-r-white px-4 py-2 min-w-[350px] text-left">
                     Descrição
                   </th>
-                  <th className="px-4 py-2 text-left">Valor</th>
-                  <th className="px-4 py-2 text-left">Vencimento</th>
-                  <th className="px-4 py-2 text-left min-w-[150px]">Parcela</th>
-                  <th className="px-4 py-2 min-w-[150px] text-left">Tipo</th>
+                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">Valor <PiArrowsDownUpBold onClick={()=>{handleSort('value')}} className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"/></th>
+                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">Vencimento <PiArrowsDownUpBold onClick={()=>{handleSort('due_date')}} className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"/></th>
+                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">Parcela <PiArrowsDownUpBold onClick={()=>{handleSort('installments')}} className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"/></th>
+                  <th className="px-4 py-2 pr-8 min-w-[150px] text-left border-r relative border-r-white">Tipo <PiArrowsDownUpBold onClick={()=>{handleSort('recurring')}} className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"/></th>
                   <th className="px-4 py-2 text-left">Ações</th>
                 </tr>
               </thead>
