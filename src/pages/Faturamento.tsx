@@ -6,6 +6,10 @@ import DebitForm from "../components/forms/debit_form";
 import Background from "../components/background";
 import { AiFillDelete } from "react-icons/ai";
 import { PiArrowsDownUpBold } from "react-icons/pi";
+import { GrMoney } from "react-icons/gr";
+import { RiMoneyDollarCircleFill } from "react-icons/ri";
+import { RiMoneyDollarBoxFill } from "react-icons/ri";
+
 
 
 type Debit = {
@@ -284,17 +288,21 @@ export default function Faturamento() {
 
   return (
     <div className="p-4 bg-indigo-950 h-[100%] min-h-screen w-[100%] py-16">
-      <div className="p-6 bg-white rounded-md max-w-[1300px] mx-auto py-16">
+      <div className="p-6 bg-gray-100  rounded-md max-w-[1300px] mx-auto py-16">
         <p className="text-2xl font-bold  text-indigo-900 text-center">
           DEBITOS MENSAIS </p><p className="text-2xl font-bold mb-4 text-indigo-900 text-center">
           {new Date()
             .toLocaleString("pt-BR", { month: "long", year: "numeric" })
             .toUpperCase()}
         </p>
-        <div className="font-bold w-[300px] mx-auto rounded shadow-md p-4 mb-6">
-          <div className="flex justify-between">
-            <p className="text-blue-700 font-bold">Débitos Totais: </p>
-            <label className="text-violet-700">
+        <div className="font-bold bg-white justify-between rounded flex flex-wrap shadow-md p-4 mb-6 gap-6 mx-auto">
+          <div className="mx-auto flex justify-between w-[250px w-[250px]">
+            <div className="flex gap-5 ">
+            <GrMoney className="w-[40px] h-auto text-yellow-500"/>
+            <p className="my-auto">TOTAL</p>
+            </div>
+            
+            <label className="text-blue-700 my-auto">
               {total.toLocaleString("pt-br", {
                 style: "currency",
                 currency: "BRL",
@@ -302,18 +310,26 @@ export default function Faturamento() {
             </label>
           </div>
 
-          <div className="flex justify-between">
-            <p className="text-blue-700 font-bold">Débitos Pagos: </p>
-            <label className=" text-green-700">
+          <div className="mx-auto flex justify-between w-[250px] ">
+          
+          <div className="flex gap-6 ">
+            <RiMoneyDollarCircleFill className="w-[40px] h-auto text-green-500"/>
+            <p className="my-auto">PAGO</p>
+            </div>
+            <label className=" text-green-500 my-auto">
               {totalPagos.toLocaleString("pt-br", {
                 style: "currency",
                 currency: "BRL",
               })}
             </label>
           </div>
-          <div className="flex justify-between">
-            <p className="text-blue-700 font-bold ">Débitos à Pagar: </p>
-            <label className="text-orange-700">
+          <div className="mx-auto flex justify-between w-[250px]">
+          
+          <div className="flex gap-2 ">
+            <RiMoneyDollarBoxFill className="w-[40px] h-auto text-red-500"/>
+            <p className="my-auto">À PAGAR</p>
+            </div>
+            <label className="text-red-500 my-auto" >
               {totalNaoPagos.toLocaleString("pt-br", {
                 style: "currency",
                 currency: "BRL",
