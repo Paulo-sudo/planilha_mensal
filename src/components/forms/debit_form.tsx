@@ -19,7 +19,7 @@ export default function DebitForm({ monthId, setAddDebit, onSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+    const user = (await supabase.auth.getUser()).data.user;
     const parsedAmount = parseFloat(amount.replace(',', '.'));
     const parsedInstallments = installments ? parseInt(installments, 10) : null;
     console.log({
@@ -30,6 +30,7 @@ export default function DebitForm({ monthId, setAddDebit, onSuccess }: Props) {
       due_date: date || null,
       recurring,
       month_id: monthId,
+      user_id: user?.id,
       created_at: new Date().toISOString(),
     }
   );
@@ -43,6 +44,7 @@ export default function DebitForm({ monthId, setAddDebit, onSuccess }: Props) {
       recurring,
       due_date: date || null,
       month_id: monthId,
+      user_id: user?.id,
       created_at: new Date().toISOString(),
     });
 
