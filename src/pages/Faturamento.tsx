@@ -605,7 +605,7 @@ export default function Faturamento() {
         </div>
 
         {!addDebit ? (
-          <div className="mb-4 mt-6 flex justify-between gap-2">
+          <div className="mb-4 mt-6 flex flex-col md:flex-row  justify-between gap-2">
             <button
               onClick={() => setAddDebit('current')}
               className="p-2 text-white bg-red-600 hover:bg-red-700 font-bold rounded "
@@ -625,9 +625,9 @@ export default function Faturamento() {
                   await handleFutureDebits();
                   setShowFuture(true);
                 }}
-                className=" px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded"
+                className=" p-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded"
               >
-                PREVIEW <br />
+                PREVIEW{' '}
                 {new Date(new Date().setMonth(new Date().getMonth() + 1))
                   .toLocaleDateString("pt-BR", {
                     month: "long",
