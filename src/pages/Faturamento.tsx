@@ -802,7 +802,7 @@ export default function Faturamento() {
                   <th className="border-r border-r-white px-4 py-2 min-w-[350px] text-left">
                     Descrição
                   </th>
-                  <th className="px-4 pr-8 min-w-[250px]  py-2 text-left border-r border-r-white relative">
+                  <th className="px-4 pr-8 min-w-[290px]  py-2 text-left border-r border-r-white relative">
                     Valor{" "}
                     <PiArrowsDownUpBold
                       onClick={() => {
