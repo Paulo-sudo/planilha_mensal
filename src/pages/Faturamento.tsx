@@ -12,7 +12,7 @@ import { RiMoneyDollarBoxFill } from "react-icons/ri";
 import { MdOutlineAddPhotoAlternate } from "react-icons/md";
 import { RiDeleteBackFill } from "react-icons/ri";
 import { MdOutlineAddCard } from "react-icons/md";
-import creditCardImg from "../assets/creditCard.jpg"
+
 
 type Debit = {
   id: string;
@@ -26,21 +26,6 @@ type Debit = {
   recurring: boolean;
   paid: boolean;
   month_id: string;
-};
-
-type FutureDebit = {
-  id: string;
-  description: string;
-  value: number;
-  installments: number | null;
-  due_date: string | null;
-  group: string | null;
-  credit_card: string; // obrigatório
-  current: number;
-  recurring: boolean;
-  paid: boolean; // pode até ficar como false sempre
-  month_id: string; // mês em que foi lançado
-  created_at: string; // opcional, bom pra rastrear
 };
 
 type Group = {
