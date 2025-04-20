@@ -12,6 +12,7 @@ import { RiMoneyDollarBoxFill } from "react-icons/ri";
 import { MdOutlineAddPhotoAlternate } from "react-icons/md";
 import { RiDeleteBackFill } from "react-icons/ri";
 import { MdOutlineAddCard } from "react-icons/md";
+import creditCardImg from "../assets/creditCard.jpg"
 
 type Debit = {
   id: string;
@@ -25,6 +26,21 @@ type Debit = {
   recurring: boolean;
   paid: boolean;
   month_id: string;
+};
+
+type FutureDebit = {
+  id: string;
+  description: string;
+  value: number;
+  installments: number | null;
+  due_date: string | null;
+  group: string | null;
+  credit_card: string; // obrigatório
+  current: number;
+  recurring: boolean;
+  paid: boolean; // pode até ficar como false sempre
+  month_id: string; // mês em que foi lançado
+  created_at: string; // opcional, bom pra rastrear
 };
 
 type Group = {
@@ -65,7 +81,7 @@ export default function Faturamento() {
   const [filter, setFilter]=useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [cards, setCards] = useState<Cards[]>([]);
-  const [addDebit, setAddDebit] = useState(false);
+  const [addDebit, setAddDebit] = useState<string | null>(null);
   const [originalDebits, setOriginalDebits] = useState<Debit[]>([]);
   const [selectGrouping, setSelectGrouping] = useState<{
     field: "group" | "credit_card";
@@ -361,20 +377,34 @@ export default function Faturamento() {
   };
 
   const handleFutureDebits = async () => {
+    const { data: futureDebitsFromSupabase, error } = await supabase
+      .from('future_debits')
+      .select('*')
+      .eq('month_id', idMonth); // mês atual
+  
+    if (error) {
+      console.error("Erro ao buscar future_debits", error);
+    }
+  
     const data = debits;
     let FutureValue = 0;
+    futureDebitsFromSupabase?.forEach((d) => {
+      FutureValue += d.value || 0;
+    });
     const grouped: Record<string, any[]> = {};
+  
     data.forEach((debit) => {
       const key = `${debit.description}-${debit.value}-${debit.installments}`;
       grouped[key] = grouped[key] || [];
       grouped[key].push(debit);
     });
-    const futureDebits = Object.values(grouped).flatMap((debits) => {
+  
+    const futureFromRecorrentesOuParcelas = Object.values(grouped).flatMap((debits) => {
       const [sample] = debits;
       if (!sample.installments && !sample.recurring) return [];
-
+  
       const highestCurrent = Math.max(...debits.map((d) => d.current || 0));
-
+  
       if (
         sample.recurring ||
         (sample.installments && highestCurrent < sample.installments)
@@ -384,18 +414,28 @@ export default function Faturamento() {
           {
             ...sample,
             current: sample.installments ? highestCurrent + 1 : null,
-            month_id: "proximo", // você pode trocar isso por um estado tipo "preview"
+            month_id: "proximo", // ou o id real do próximo mês
             preview: true,
           },
         ];
       }
-
+  
       return [];
     });
-
+  
+    const futureFromSupabase = futureDebitsFromSupabase?.map((debit) => ({
+      ...debit,
+      preview: true,
+      month_id: "proximo",
+    })) ?? [];
+  
+    // Junta os dois
+    const allFutureDebits = [...futureFromRecorrentesOuParcelas, ...futureFromSupabase];
+  
     setFutureValue(FutureValue);
-    setFutureDebits(futureDebits);
+    setFutureDebits(allFutureDebits);
   };
+  
 
   const fetchDebits = async () => {
     const a: any = sort?.split("-");
@@ -582,10 +622,17 @@ export default function Faturamento() {
         {!addDebit ? (
           <div className="mb-4 mt-6 flex justify-between gap-2">
             <button
-              onClick={() => setAddDebit(true)}
-              className="p-2 text-white bg-blue-700 font-bold rounded "
+              onClick={() => setAddDebit('current')}
+              className="p-2 text-white bg-red-600 hover:bg-red-700 font-bold rounded "
             >
               ADICIONAR DÉBITO
+            </button>
+            <button
+            disabled = {cards.length== 0}
+              onClick={() => setAddDebit('future')}
+              className="p-2 text-white bg-yellow-500 hover:bg-yellow-600 font-bold rounded "
+            >
+              LANÇAMENTO FUTURO
             </button>
             {!showFuture && (
               <button
@@ -593,7 +640,7 @@ export default function Faturamento() {
                   await handleFutureDebits();
                   setShowFuture(true);
                 }}
-                className=" px-2 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded"
+                className=" px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded"
               >
                 PREVIEW <br />
                 {new Date(new Date().setMonth(new Date().getMonth() + 1))
@@ -609,14 +656,17 @@ export default function Faturamento() {
         ) : (
           <Background>
             <DebitForm
+              type={addDebit}
               onSuccess={fetchDebits}
+              cards = {cards}
               setAddDebit={setAddDebit}
               monthId={idMonth || ""}
             />
           </Background>
         )}
-
+        
         <h2 className="text-xl font-semibold  text-indigo-900">SEUS DÉBITOS</h2>
+        
 
         {showFuture && (
           <Background>
@@ -830,7 +880,7 @@ export default function Faturamento() {
                         />
                       )}
                     </td>
-                    <td className="px-4 py-2 font-medium min-w-[400px] uppercase max-w-xs break-words flex  justify-between">
+                    <td className=" py-2 font-medium  uppercase  break-words flex  justify-between">
                       <label className="my-auto">
                         {debit.description.replace("byduuid", "")}
                       </label>
@@ -851,7 +901,7 @@ export default function Faturamento() {
                                 onClick={() => {
                                   handleSortGroup(grupo.name);
                                 }}
-                                className="h-[40px] w-auto cursor-pointer rounded ring ring-yellow-500"
+                                className={debit.description.includes("byduuid") ?"h-[100px] bg-white  w-auto cursor-pointer rounded ring ring-yellow-500":"h-[40px] bg-white max-w-[80%] w-auto cursor-pointer rounded ring ring-yellow-500"}
                                 src={grupo.image}
                                 alt={grupo.name}
                               />
@@ -869,7 +919,7 @@ export default function Faturamento() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className=" px-2 py-2">
                       {editingId === debit.id ? (
                         <input
                           type="number"
@@ -914,7 +964,7 @@ export default function Faturamento() {
                                     onClick={() => {
                                       handleSortCard(card.name);
                                     }}
-                                    className="h-[40px] bg-white w-auto cursor-pointer rounded ring ring-yellow-500"
+                                    className={debit.description.includes("byduuid") ?"h-[100px] bg-white  w-auto cursor-pointer rounded ring ring-yellow-500":"h-[40px] bg-white max-w-[80%] w-auto cursor-pointer rounded ring ring-yellow-500"}
                                     src={card.image}
                                     alt={card.name}
                                   />

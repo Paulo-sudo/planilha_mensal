@@ -1,6 +1,7 @@
 import { supabase } from '../supabase_client';
 
 export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthId: string) {
+  // Buscar débitos atuais e do novo mês
   const { data: allDebits, error } = await supabase
     .from('debits')
     .select('*')
@@ -8,7 +9,18 @@ export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthI
 
   if (error || !allDebits) return;
 
-  // Agrupar por dívidas com mesmo identificador (ex: description, ou use um campo unique se quiser)
+  // Buscar future_debits do mês anterior
+  const { data: futureDebits, error: futureError } = await supabase
+    .from('future_debits')
+    .select('*')
+    .eq('month_id', previousMonthId);
+
+  if (futureError) {
+    console.error("Erro ao buscar future_debits:", futureError);
+    return;
+  }
+
+  // Agrupamento para replicação de recorrentes/parcelados
   const grouped: Record<string, any[]> = {};
   allDebits.forEach((debit) => {
     const key = `${debit.description}-${debit.value}-${debit.installments}`;
@@ -16,7 +28,7 @@ export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthI
     grouped[key].push(debit);
   });
 
-  const newDebits = Object.values(grouped).flatMap((debits) => {
+  const recurringOrInstallments = Object.values(grouped).flatMap((debits) => {
     const [sample] = debits;
     if (!sample.installments && !sample.recurring) return [];
 
@@ -25,7 +37,7 @@ export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthI
     if (sample.recurring || (sample.installments && highestCurrent < sample.installments)) {
       return [{
         ...sample,
-        current: highestCurrent + 1,
+        current: sample.installments ? highestCurrent + 1 : null,
         month_id: newMonthId,
         created_at: new Date().toISOString(),
       }];
@@ -34,8 +46,18 @@ export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthI
     return [];
   });
 
-  const sanitized = newDebits.map(({ id, ...rest }) => rest);
-  await supabase.from('debits').insert(sanitized);
-}
+  // Migrar future_debits com current e installments preservados
+  const mappedFutureDebits = (futureDebits || []).map((f) => ({
+    ...f,
+    paid: false,
+    created_at: new Date().toISOString(),
+    month_id: newMonthId,
+  }));
 
-  
+  // Remover o campo `id` antes de inserir
+  const sanitized = [...recurringOrInstallments, ...mappedFutureDebits].map(({ id, ...rest }) => rest);
+
+  if (sanitized.length) {
+    await supabase.from('debits').insert(sanitized);
+  }
+}
