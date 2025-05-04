@@ -39,18 +39,29 @@ export async function ensureMonthExists(): Promise<any> {
       user_id: userId,
       name: monthName,
       year,
-    });
+    }).select().single(); // precisa do .select() pra retornar o ID do mês criado
 
     if (insertError) {
       console.error('Erro ao criar mês:', insertError);
     } else if (newMonth) {
-        const monthId = (newMonth as any).id;
-        await replicateDebitsIfNeeded(userId, monthId); // só chama se tiver mesmo um mês criado
+      // Buscar o mês anterior existente
+      const { data: previousMonth } = await supabase
+        .from('month')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .neq('id', newMonth.id) // evita pegar o recém-criado
+        .limit(1)
+        .single();
 
+      if (previousMonth) {
+        await replicateDebitsIfNeeded(previousMonth.id, newMonth.id);
       } else {
-        console.warn('Mês criado, mas não retornou dados.'); // fallback de segurança
+        console.warn('Nenhum mês anterior encontrado para replicar débitos.');
       }
+
       return newMonth;
+    }
   } else {
 
       return existingMonth
