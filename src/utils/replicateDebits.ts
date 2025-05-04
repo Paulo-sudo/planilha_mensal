@@ -40,6 +40,7 @@ export async function replicateDebitsIfNeeded(previousMonthId: string, newMonthI
         current: sample.installments ? highestCurrent + 1 : null,
         month_id: newMonthId,
         created_at: new Date().toISOString(),
+        paid: false, // <- Aqui está a correção
       }];
     }
 
