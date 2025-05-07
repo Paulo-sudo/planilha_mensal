@@ -11,7 +11,7 @@ const Background: React.FC<BackgroundProps> = (props) => {
     return (
         <>
             {createPortal(
-                <div  className={"bg-[#1e1b4b82]  fixed w-screen h-screen top-0 p-4 overflow-y-scroll "}>
+                <div  className={"bg-[#1e1b4baa]  fixed w-screen h-screen top-0 p-4 overflow-y-scroll "}>
 
                     {children} {/* Renderiza os filhos, se houver */}
                 </div>,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../supabase_client';
 import Background from '../background';
 import { AiFillDelete } from 'react-icons/ai';
+import coinGif from '../../assets/coin.gif'
 
 interface Props {
   monthId: string;
@@ -129,7 +130,17 @@ export default function DebitForm({ monthId, setAddDebit, onSuccess, cards, type
     setLoading(false);
   };
 
-  return (<div className='bg-white shadow-md rounded p-4 space-y-4 w-full max-w-md mx-auto mt-20'>
+  return (
+  <>
+  {loading && (
+    <Background>
+
+
+      <img className='mx-auto' src={coinGif} alt="" />
+
+    </Background>
+  )}
+  <div className='bg-white shadow-md rounded p-4 space-y-4 w-full max-w-md mx-auto mt-20 mb-20'>
 
 {future.length > 0 && (
           <Background>
@@ -373,5 +384,6 @@ export default function DebitForm({ monthId, setAddDebit, onSuccess, cards, type
     </>
   )}
   </div>
+  </>
   );
 }

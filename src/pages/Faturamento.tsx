@@ -12,6 +12,7 @@ import { RiMoneyDollarBoxFill } from "react-icons/ri";
 import { MdOutlineAddPhotoAlternate } from "react-icons/md";
 import { RiDeleteBackFill } from "react-icons/ri";
 import { MdOutlineAddCard } from "react-icons/md";
+import coinGif from '../assets/coin.gif'
 
 
 type Debit = {
@@ -76,7 +77,8 @@ export default function Faturamento() {
     field: "group" | "credit_card";
     value: string;
   } | null>(null);
-
+  const delay = (ms:any) => new Promise((resolve) => setTimeout(resolve, ms));
+  
   const handleGroupToggle = (groupName: string) => {
     if (!originalDebits.length) setOriginalDebits(debits);
 
@@ -116,7 +118,8 @@ export default function Faturamento() {
 
   const handleCardToggle = (cardName: string) => {
     if (!originalDebits.length) setOriginalDebits(debits);
-
+    setLoading(true)
+    
     if (
       activeGrouping?.field === "credit_card" &&
       activeGrouping.value === cardName
@@ -125,6 +128,7 @@ export default function Faturamento() {
       //setDebits(originalDebits);
       setSelectGrouping(null);
       setActiveGrouping(null);
+      setLoading(false)
     } else {
       // Agrupa cartão
       const filtered = debits.filter((d) => d.credit_card === cardName);
@@ -147,11 +151,14 @@ export default function Faturamento() {
 
       setDebits([grouped, ...others]);
       setActiveGrouping({ field: "credit_card", value: cardName });
+      setLoading(false)
     }
   };
 
-    const handleSortGroup = (groupName: string) => {
+    const handleSortGroup = async (groupName: string) => {
+      setLoading(true)
     console.log("GROUP", selectGrouping, activeGrouping, filter);
+    await delay(500);
     setFilter(`group_${groupName}`)
     if (
       (selectGrouping?.field == "group" &&
@@ -178,10 +185,13 @@ export default function Faturamento() {
       setDebits(ordenado);
       setSelectGrouping({ field: "group", value: groupName });
     }
+    setLoading(false)
   };
 
-  const handleSortCard = (cardName: string) => {
-    console.log("Card", selectGrouping, activeGrouping);
+  const handleSortCard = async (cardName: string) => {
+    setLoading(true)
+    console.log("Card", selectGrouping, activeGrouping, loading);
+    await delay(500);
     setFilter(`credit_card_${cardName}`)
     if (
       (selectGrouping?.field == "credit_card" &&
@@ -197,6 +207,7 @@ export default function Faturamento() {
       setDebits(ordenado);
       setSelectGrouping({ field: "credit_card", value: cardName });
       handleCardToggle(cardName);
+      
     } else {
       const base = originalDebits.length > 0 ? originalDebits : debits;
       const ordenado = [...base].sort((a, b) => {
@@ -208,6 +219,8 @@ export default function Faturamento() {
       setDebits(ordenado);
       setSelectGrouping({ field: "credit_card", value: cardName });
     }
+    
+    setLoading(false)
   };
 
   const navigate = useNavigate();
@@ -277,7 +290,9 @@ export default function Faturamento() {
   };
 
   const handleSort = async (filter: string) => {
-    console.log(filter, sort);
+    setLoading(true)
+    await delay(200);
+    console.log(filter, sort, loading);
     const a = sort?.split("-");
     if (a && a[0] == filter) {
       let b;
@@ -294,7 +309,7 @@ export default function Faturamento() {
 
   useEffect(() => {
     if (!debits.length || !sort) return;
-
+    setLoading(true)
     const [field, direction] = sort.split("-");
     const sorted = [...debits].sort((a: any, b: any) => {
       const aValue = field === "due_date" ? Number(a[field]) : a[field];
@@ -316,6 +331,7 @@ export default function Faturamento() {
     setTotal(total);
     setTotalPagos(totalPagos);
     setTotalNaoPagos(totalNaoPagos);
+    setLoading(false)
   }, [sort]);
 
   const handleTogglePaid = async (debitId: string, paid: boolean) => {
@@ -447,6 +463,7 @@ export default function Faturamento() {
       console.error("Erro ao buscar débitos:", error);
       setDebits([]);
     }
+    
   };
 
   const handleDelete = async (id: string) => {
@@ -537,23 +554,25 @@ export default function Faturamento() {
           setTotalNaoPagos(totalNaoPagos);
         }
       }
-
-      setLoading(false);
+      setLoading(false)
+      
     };
 
     init();
   }, [navigate]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <span className="text-gray-500">Carregando...</span>
-      </div>
-    );
-  }
 
   return (
-    <div className="p-4 bg-indigo-950 h-[100%] min-h-screen w-[100%] py-16">
+    <>
+          {loading && (
+                    <Background>
+                      <div className='w-full h-full my-auto'>
+
+                    <img className='py-[250px] md:py-[200px] mx-auto h-full my-auto' src={coinGif} alt="" />
+                      </div>
+                  </Background>
+          )}
+        <div className="p-4 bg-indigo-950 h-[100%] min-h-screen w-[100%] py-16">
       <div className="p-6 bg-gray-100  rounded-md max-w-[1500px] mx-auto py-16">
         <p className="text-2xl font-bold  text-indigo-900 text-center">
           DEBITOS MENSAIS{" "}
@@ -655,7 +674,7 @@ export default function Faturamento() {
 
         {showFuture && (
           <Background>
-            <div className="mt-14 max-w-[650px]   mx-auto p-4 bg-white rounded">
+            <div className="mt-14 max-w-[650px] mb-14  mx-auto p-4 bg-white rounded">
               <p className="text-lg font-bold text-center text-indigo-800">
                 Próximo Faturamento (Simulado)
               </p>
@@ -784,7 +803,7 @@ export default function Faturamento() {
           </Background>
         )}
         {debits.length === 0 ? (
-          <p className="text-gray-500">Nenhuma dívida cadastrada.</p>
+          <p className="text-gray-500">{loading? "Carregando . . ." : "Nenhuma dívida cadastrada." }</p>
         ) : (
           <div className="w-full mt-4 overflow-x-auto">
             <table className="min-w-full border-collapse bg-white shadow rounded-lg">
@@ -1109,5 +1128,6 @@ export default function Faturamento() {
         )}
       </div>
     </div>
+    </>
   );
 }
