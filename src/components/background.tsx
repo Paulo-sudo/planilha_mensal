@@ -11,7 +11,7 @@ const Background: React.FC<BackgroundProps> = (props) => {
     return (
         <>
             {createPortal(
-                <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 dark:bg-black/70 backdrop-blur-sm">
                     <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
                         {children}
                     </div>

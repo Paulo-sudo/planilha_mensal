@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { HiOutlineWallet } from "react-icons/hi2";
+import ThemeToggle from "./theme_toggle";
 
 const links = [
   { to: "/faturamento", label: "Faturamento" },
@@ -11,12 +12,12 @@ export default function Header() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-pure">
             <HiOutlineWallet className="h-5 w-5" />
           </div>
-          <span className="text-sm font-semibold text-slate-900">Planilha Mensal</span>
+          <span className="hidden text-sm font-semibold text-slate-900 sm:inline">Planilha Mensal</span>
         </div>
-        <nav className="flex gap-1">
+        <nav className="flex items-center gap-1">
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -28,6 +29,8 @@ export default function Header() {
               {link.label}
             </NavLink>
           ))}
+          <span className="mx-1 h-5 w-px bg-slate-200" />
+          <ThemeToggle />
         </nav>
       </div>
     </header>

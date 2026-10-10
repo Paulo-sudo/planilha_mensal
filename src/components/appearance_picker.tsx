@@ -48,7 +48,7 @@ export default function AppearancePicker({ icon, color, onIconChange, onColorCha
                 type="button"
                 title={c.label}
                 onClick={() => onColorChange(c.key)}
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-white transition ${c.swatch} ${
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-pure transition ${c.swatch} ${
                   selected ? `ring-2 ring-offset-2 ${c.ring}` : "hover:scale-110"
                 }`}
               >

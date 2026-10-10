@@ -26,13 +26,13 @@
     @apply px-2.5 py-1.5 text-xs;
   }
   .btn-primary {
-    @apply bg-indigo-600 text-white shadow-sm hover:bg-indigo-700;
+    @apply bg-indigo-600 text-pure shadow-sm hover:brightness-110;
   }
   .btn-secondary {
     @apply border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50;
   }
   .btn-danger {
-    @apply bg-rose-600 text-white shadow-sm hover:bg-rose-700;
+    @apply bg-rose-600 text-pure shadow-sm hover:brightness-110;
   }
   .btn-ghost {
     @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;

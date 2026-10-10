@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '../supabase_client';
 import { useNavigate } from 'react-router-dom';
 import { HiOutlineWallet } from 'react-icons/hi2';
+import ThemeToggle from '../components/theme_toggle';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -34,10 +35,13 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-pure shadow-sm">
             <HiOutlineWallet className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-semibold text-slate-900">Planilha Mensal</h1>

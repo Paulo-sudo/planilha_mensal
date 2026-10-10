@@ -605,14 +605,15 @@ export default function Faturamento() {
     return null;
   };
 
-  // Barra viva de 2px na borda + tom claro que desce até o branco numa curva única.
+  // Barra viva de 2px na borda + tom claro que desce até o fundo numa curva única
+  // (usa as variáveis de cor, então no modo escuro o tom claro vira um tom escuro).
   // A "dica" de interpolação (22px) faz a queda ser mais rápida no início e a cauda suave,
   // sem várias paradas — são elas que criam faixas visíveis.
   const dueBar = (status: ReturnType<typeof dueStatus>) => {
     if (!status) return "";
     return status.tone === "overdue"
-      ? "bg-[linear-gradient(to_right,#f43f5e_0_2px,#fecdd3_2px,22px,rgb(254_205_211/0)_64px)]"
-      : "bg-[linear-gradient(to_right,#f97316_0_2px,#fed7aa_2px,22px,rgb(254_215_170/0)_64px)]";
+      ? "bg-[linear-gradient(to_right,rgb(var(--c-rose-500))_0_2px,rgb(var(--c-rose-200))_2px,22px,rgb(var(--c-rose-200)/0)_64px)]"
+      : "bg-[linear-gradient(to_right,rgb(var(--c-orange-500))_0_2px,rgb(var(--c-orange-200))_2px,22px,rgb(var(--c-orange-200)/0)_64px)]";
   };
 
   const dueBadge = (status: ReturnType<typeof dueStatus>) =>
@@ -1042,7 +1043,7 @@ export default function Faturamento() {
                   ) : (
                     <button
                       onClick={() => handlePayCard(openBill.items, true)}
-                      className="btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                      className="btn bg-emerald-600 text-pure shadow-sm hover:brightness-110"
                     >
                       <HiOutlineCheckCircle className="h-4 w-4" />
                       Pagar fatura · {brl(openBill.total - openBill.items.filter((i) => i.paid).reduce((acc, i) => acc + i.value, 0))}
