@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 
 
 interface BackgroundProps {
-    children?: React.ReactNode;// 'origin' é opcional
+    children?: React.ReactNode;
 
 }
 
@@ -11,9 +11,10 @@ const Background: React.FC<BackgroundProps> = (props) => {
     return (
         <>
             {createPortal(
-                <div  className={"bg-[#1e1b4baa]  fixed w-screen h-screen top-0 p-4 overflow-y-scroll "}>
-
-                    {children} {/* Renderiza os filhos, se houver */}
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm">
+                    <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+                        {children}
+                    </div>
                 </div>,
                 document.getElementById("background-root") as HTMLElement // Assegura que o elemento existe
             )}

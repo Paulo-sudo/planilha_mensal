@@ -1,13 +1,14 @@
 // src/pages/Operacoes.tsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "../supabase_client";
 import { useNavigate } from "react-router-dom";
+import { HiOutlineCreditCard, HiOutlineRectangleGroup } from "react-icons/hi2";
+import Header from "../components/header";
+import CardManager from "../components/card_manager";
+import EntityTag from "../components/entity_tag";
+import { GROUPS } from "../utils/appearance";
 
 export default function Operacoes() {
-  const [name, setName] = useState("");
-  const [imageBase64, setImageBase64] = useState("");
-  const [nameCredit, setNameCredit] = useState("");
-  const [imageBase64Credit, setImageBase64Credit] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,131 +23,44 @@ export default function Operacoes() {
     checkAuth();
   }, [navigate]);
 
-  const handleImageChangeCredit = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageBase64Credit(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageBase64(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const user = (await supabase.auth.getUser()).data.user;
-
-    const { error } = await supabase.from("groups").insert({
-      name:name.toUpperCase(),
-      image: imageBase64,
-      user_id: user ? user.id : null
-    });
-
-    if (error) {
-      alert("Erro ao salvar grupo");
-      console.error(error);
-    } else {
-      alert("Grupo salvo com sucesso!");
-      setName("");
-      setImageBase64("");
-    }
-  };
-
-  const handleSubmitCredit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const user = (await supabase.auth.getUser()).data.user;
-
-    const { error } = await supabase.from("credit_cards").insert({
-      name:nameCredit.toUpperCase(),
-      image: imageBase64Credit,
-      user_id: user ? user.id : null
-    });
-
-    if (error) {
-      alert("Erro ao salvar credit_card");
-      console.error(error);
-    } else {
-      alert("Credit_card salvo com sucesso!");
-      setNameCredit("");
-      setImageBase64Credit("");
-    }
-  };
-
   return (
-    <div className="bg-indigo-950 w-screen h-screen p-6">
+    <div className="min-h-screen bg-slate-50">
+      <Header />
 
-    <div className="mt-8 mx-auto p-4 bg-white shadow-md  rounded-lg">
-      <h1 className="text-xl font-bold mb-4 text-indigo-900">Cadastrar Grupo</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block font-medium">Nome do Grupo</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full border p-2 rounded"
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-slate-900">Cadastros</h1>
+          <p className="mt-1 text-sm text-slate-500">Grupos e cartões usados para organizar seus débitos.</p>
+        </div>
+
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <CardManager
+            title="Cartões de crédito"
+            subtitle="Mesmo ícone, cores diferentes para distinguir"
+            HeaderIcon={HiOutlineCreditCard}
           />
+
+          <section className="card p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <span className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                <HiOutlineRectangleGroup className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Grupos</h2>
+                <p className="text-sm text-slate-500">Fixos — escolha um ao criar o débito</p>
+              </div>
+            </div>
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {GROUPS.map((group) => (
+                <li key={group.name} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2">
+                  <EntityTag kind="group" name={group.name} iconOnly />
+                  <span className="text-sm font-medium text-slate-800">{group.label}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
-
-        <div>
-          <label className="block font-medium">Imagem (opcional)</label>
-          <input type="file" accept="image/*" onChange={handleImageChange} />
-          {imageBase64 && (
-            <img src={imageBase64} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded" />
-          )}
-        </div>
-
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Salvar
-        </button>
-      </form>
-    </div>
-
-    <div className="mt-8 mx-auto p-4 bg-white shadow-md  rounded-lg">
-      <h1 className="text-xl font-bold mb-4 text-indigo-900">Cadastrar Cartão de Crédito</h1>
-      <form onSubmit={handleSubmitCredit} className="space-y-4">
-        <div>
-          <label className="block font-medium">Nome do Cartão de Crédito</label>
-          <input
-            type="text"
-            value={nameCredit}
-            onChange={(e) => setNameCredit(e.target.value)}
-            required
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium">Imagem (opcional)</label>
-          <input type="file" accept="image/*" onChange={handleImageChangeCredit} />
-          {imageBase64Credit && (
-            <img src={imageBase64Credit} alt="Preview" className="mt-2 w-20 h-20 object-cover rounded" />
-          )}
-        </div>
-
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Salvar
-        </button>
-      </form>
-    </div>
+      </main>
     </div>
   );
 }

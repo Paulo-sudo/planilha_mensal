@@ -4,15 +4,30 @@ import { supabase } from "../supabase_client";
 import { ensureMonthExists } from "../utils/ensureMonthExists";
 import DebitForm from "../components/forms/debit_form";
 import Background from "../components/background";
-import { AiFillDelete } from "react-icons/ai";
-import { PiArrowsDownUpBold } from "react-icons/pi";
-import { GrMoney } from "react-icons/gr";
-import { RiMoneyDollarCircleFill } from "react-icons/ri";
-import { RiMoneyDollarBoxFill } from "react-icons/ri";
-import { MdOutlineAddPhotoAlternate } from "react-icons/md";
-import { RiDeleteBackFill } from "react-icons/ri";
-import { MdOutlineAddCard } from "react-icons/md";
-import coinGif from '../assets/coin.gif'
+import Header from "../components/header";
+import Spinner from "../components/spinner";
+import EntityTag from "../components/entity_tag";
+import { findGroup, GROUPS } from "../utils/appearance";
+import { brl, monthLabel } from "../utils/format";
+import {
+  HiChevronDown,
+  HiChevronRight,
+  HiOutlineArrowUturnLeft,
+  HiChevronUp,
+  HiChevronUpDown,
+  HiOutlineArrowPath,
+  HiOutlineBanknotes,
+  HiOutlineCalendarDays,
+  HiOutlineCheckCircle,
+  HiOutlineClock,
+  HiOutlineCreditCard,
+  HiOutlineEye,
+  HiOutlineInboxStack,
+  HiOutlinePlus,
+  HiOutlineTag,
+  HiOutlineTrash,
+  HiXMark,
+} from "react-icons/hi2";
 
 
 type Debit = {
@@ -29,17 +44,21 @@ type Debit = {
   month_id: string;
 };
 
-type Group = {
-  id: string;
-  name: string;
-  image: string;
-  future: boolean;
+type CardBill = {
+  card: string;
+  items: Debit[];
+  total: number;
+  paidCount: number;
 };
+
+type Row = { type: "debit"; debit: Debit } | { type: "card"; bill: CardBill };
 
 type Cards = {
   id: string;
   name: string;
-  image: string;
+  icon: string | null;
+  color: string | null;
+  due_day: number | null;
 };
 
 export default function Faturamento() {
@@ -62,10 +81,10 @@ export default function Faturamento() {
   const [showFuture, setShowFuture] = useState(false);
   const [selectGroup, setSelectGroup] = useState<string | null>(null);
   const [selectCard, setSelectCard] = useState<string | null>(null);
+  const [openCard, setOpenCard] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [sort, setSort] = useState<string | null>("created_at-D");
   const [filter, setFilter]=useState<string | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [cards, setCards] = useState<Cards[]>([]);
   const [addDebit, setAddDebit] = useState<string | null>(null);
   const [originalDebits, setOriginalDebits] = useState<Debit[]>([]);
@@ -93,8 +112,9 @@ export default function Faturamento() {
     } else {
       // Agrupa grupo
 
-      const filtered = debits.filter((d) => d.group === groupName);
-      const others = debits.filter((d) => d.group !== groupName);
+      const filtered = debits.filter((d) => d.group === groupName && !d.credit_card);
+      const others = debits.filter((d) => !(d.group === groupName && !d.credit_card));
+      if (!filtered.length) return;
 
       const total = filtered.reduce((acc, d) => acc + (d.value || 0), 0);
       const grouped: Debit = {
@@ -103,7 +123,7 @@ export default function Faturamento() {
         value: total,
         paid: false,
         installments: null,
-        credit_card: "uuid",
+        credit_card: null,
         current: 0,
         recurring: false,
         due_date: filtered[0].due_date,
@@ -113,45 +133,6 @@ export default function Faturamento() {
 
       setDebits([grouped, ...others]);
       setActiveGrouping({ field: "group", value: groupName });
-    }
-  };
-
-  const handleCardToggle = (cardName: string) => {
-    if (!originalDebits.length) setOriginalDebits(debits);
-    setLoading(true)
-    
-    if (
-      activeGrouping?.field === "credit_card" &&
-      activeGrouping.value === cardName
-    ) {
-      // Desativa
-      //setDebits(originalDebits);
-      setSelectGrouping(null);
-      setActiveGrouping(null);
-      setLoading(false)
-    } else {
-      // Agrupa cartão
-      const filtered = debits.filter((d) => d.credit_card === cardName);
-      const others = debits.filter((d) => d.credit_card !== cardName);
-
-      const total = filtered.reduce((acc, d) => acc + (d.value || 0), 0);
-      const grouped: Debit = {
-        id: "card-" + cardName,
-        description: `byduuidTOTAL => ${cardName}`,
-        value: total,
-        paid: false,
-        installments: null,
-        credit_card: filtered[0].credit_card,
-        current: 0,
-        recurring: false,
-        due_date: filtered[0].due_date,
-        group: "uuid",
-        month_id: filtered[0]?.month_id,
-      };
-
-      setDebits([grouped, ...others]);
-      setActiveGrouping({ field: "credit_card", value: cardName });
-      setLoading(false)
     }
   };
 
@@ -185,41 +166,6 @@ export default function Faturamento() {
       setDebits(ordenado);
       setSelectGrouping({ field: "group", value: groupName });
     }
-    setLoading(false)
-  };
-
-  const handleSortCard = async (cardName: string) => {
-    setLoading(true)
-    console.log("Card", selectGrouping, activeGrouping, loading);
-    await delay(500);
-    setFilter(`credit_card_${cardName}`)
-    if (
-      (selectGrouping?.field == "credit_card" &&
-      selectGrouping.value === cardName) || filter === `credit_card_${cardName}`
-    ) {
-      const base = originalDebits.length > 0 ? originalDebits : debits;
-      const ordenado = [...base].sort((a, b) => {
-        if (a.credit_card === cardName && b.credit_card !== cardName) return -1;
-        if (a.credit_card !== cardName && b.credit_card === cardName) return 1;
-        return 0;
-      });
-
-      setDebits(ordenado);
-      setSelectGrouping({ field: "credit_card", value: cardName });
-      handleCardToggle(cardName);
-      
-    } else {
-      const base = originalDebits.length > 0 ? originalDebits : debits;
-      const ordenado = [...base].sort((a, b) => {
-        if (a.credit_card === cardName && b.credit_card !== cardName) return -1;
-        if (a.credit_card !== cardName && b.credit_card === cardName) return 1;
-        return 0;
-      });
-
-      setDebits(ordenado);
-      setSelectGrouping({ field: "credit_card", value: cardName });
-    }
-    
     setLoading(false)
   };
 
@@ -276,9 +222,11 @@ export default function Faturamento() {
     setSelectCard(null);
     console.log(name);
 
+    // Ao entrar no cartão, o débito passa a vencer no dia cadastrado no cartão
+    const dueDay = cards.find((c) => c.name === name)?.due_day;
     const { error } = await supabase
       .from("debits")
-      .update({ credit_card: name }) // atualiza o campo "group"
+      .update(dueDay ? { credit_card: name, due_date: String(dueDay) } : { credit_card: name })
       .eq("id", debitId); // onde o ID do débito for igual ao selecionado
 
     if (error) {
@@ -346,6 +294,19 @@ export default function Faturamento() {
       setDebits((prev) =>
         prev.map((d) => (d.id === debitId ? { ...d, paid } : d))
       );
+      await fetchDebits();
+    }
+  };
+
+  // Paga (ou desmarca) todas as compras da fatura numa única atualização
+  const handlePayCard = async (items: Debit[], paid: boolean) => {
+    const ids = items.map((d) => d.id);
+    const { error } = await supabase.from("debits").update({ paid }).in("id", ids);
+
+    if (error) {
+      console.error("Erro ao pagar fatura:", error);
+    } else {
+      setDebits((prev) => prev.map((d) => (ids.includes(d.id) ? { ...d, paid } : d)));
       await fetchDebits();
     }
   };
@@ -447,7 +408,16 @@ export default function Faturamento() {
       .order(a[0], { ascending: a[1] == "D" ? false : true });
 
     if (!error && data) {
-      setDebits(data);
+      // Mantém a posição atual de cada débito (o banco não garante ordem entre empates,
+      // então pagar/editar fazia a linha "pular"). Débitos novos entram no topo.
+      setDebits((prev) => {
+        const position = new Map(prev.map((d, i) => [d.id, i]));
+        const known = data
+          .filter((d) => position.has(d.id))
+          .sort((a, b) => position.get(a.id)! - position.get(b.id)!);
+        const added = data.filter((d) => !position.has(d.id));
+        return [...added, ...known];
+      });
 
       // Totais do mês atual
       const total = data.reduce((acc, d) => acc + (d.value || 0), 0);
@@ -517,12 +487,6 @@ export default function Faturamento() {
       const user = (await supabase.auth.getUser()).data.user;
       if (monthId) {
         setIdMonth(monthId.id);
-        const { data: groups } = await supabase
-          .from("groups")
-          .select("*")
-          .eq("user_id", user ? user.id : null);
-        console.log(groups);
-        setGroups(groups ?? []);
         const { data: cards } = await supabase
           .from("credit_cards")
           .select("*")
@@ -561,573 +525,797 @@ export default function Faturamento() {
     init();
   }, [navigate]);
 
+  const sortIcon = (field: string) => {
+    const [current, direction] = (sort ?? "").split("-");
+    if (current !== field) return <HiChevronUpDown className="h-3.5 w-3.5 text-slate-400" />;
+    return direction === "D" ? (
+      <HiChevronDown className="h-3.5 w-3.5 text-indigo-600" />
+    ) : (
+      <HiChevronUp className="h-3.5 w-3.5 text-indigo-600" />
+    );
+  };
+
+  const sortableTh = (field: string, label: string, className = "") => (
+    <th className={`th ${className}`}>
+      <button
+        type="button"
+        onClick={() => handleSort(field)}
+        className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-slate-900"
+      >
+        {label}
+        {sortIcon(field)}
+      </button>
+    </th>
+  );
+
+  const placeholderClass =
+    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 text-slate-400 transition-colors hover:border-indigo-400 hover:text-indigo-600";
+
+  // Compras no cartão nunca aparecem soltas: viram uma única linha de fatura por cartão
+  const cardItems = new Map<string, Debit[]>();
+  debits.forEach((d) => {
+    if (!d.credit_card || d.description.includes("byduuid")) return;
+    cardItems.set(d.credit_card, [...(cardItems.get(d.credit_card) ?? []), d]);
+  });
+
+  const rows: Row[] = [];
+  const emittedCards = new Set<string>();
+  debits.forEach((d) => {
+    const items = d.credit_card ? cardItems.get(d.credit_card) : undefined;
+    if (!items) {
+      rows.push({ type: "debit", debit: d });
+      return;
+    }
+    if (emittedCards.has(d.credit_card!)) return;
+    emittedCards.add(d.credit_card!);
+    rows.push({
+      type: "card",
+      bill: {
+        card: d.credit_card!,
+        items,
+        total: items.reduce((acc, i) => acc + (i.value || 0), 0),
+        paidCount: items.filter((i) => i.paid).length,
+      },
+    });
+  });
+
+  // Cartões ficam fixos no topo (por nome); a ordenação da tabela vale só para os outros débitos
+  const cardBills = rows
+    .flatMap((r) => (r.type === "card" ? [r.bill] : []))
+    .sort((a, b) => a.card.localeCompare(b.card));
+  const debitRows = rows.flatMap((r) => (r.type === "debit" ? [r.debit] : []));
+
+  const openBill = openCard ? cardBills.find((b) => b.card === openCard) : undefined;
+  const openBillPaid = !!openBill && openBill.paidCount === openBill.items.length;
+
+  // Fatura ficou vazia (compras excluídas/tiradas do cartão): fecha a janela
+  useEffect(() => {
+    if (openCard && !openBill) setOpenCard(null);
+  }, [openCard, openBill]);
+  const cardInfo = (name: string) => cards.find((c) => c.name === name);
+
+  // due_date guarda só o dia do mês corrente
+  const dueStatus = (dueDate: string | null, paid: boolean) => {
+    if (paid || !dueDate) return null;
+    const daysLeft = Number(dueDate) - new Date().getDate();
+    if (Number.isNaN(daysLeft)) return null;
+    if (daysLeft < 0) return { tone: "overdue" as const, label: "Vencido" };
+    if (daysLeft <= 2)
+      return { tone: "soon" as const, label: daysLeft === 0 ? "Vence hoje" : `Vence em ${daysLeft} ${daysLeft === 1 ? "dia" : "dias"}` };
+    return null;
+  };
+
+  // Barra viva de 2px na borda + tom claro que desce até o branco numa curva única.
+  // A "dica" de interpolação (22px) faz a queda ser mais rápida no início e a cauda suave,
+  // sem várias paradas — são elas que criam faixas visíveis.
+  const dueBar = (status: ReturnType<typeof dueStatus>) => {
+    if (!status) return "";
+    return status.tone === "overdue"
+      ? "bg-[linear-gradient(to_right,#f43f5e_0_2px,#fecdd3_2px,22px,rgb(254_205_211/0)_64px)]"
+      : "bg-[linear-gradient(to_right,#f97316_0_2px,#fed7aa_2px,22px,rgb(254_215_170/0)_64px)]";
+  };
+
+  const dueBadge = (status: ReturnType<typeof dueStatus>) =>
+    status && (
+      <span
+        className={`badge ${
+          status.tone === "overdue" ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" : "bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200"
+        }`}
+      >
+        {status.label}
+      </span>
+    );
+
+  const formatDue = (dueDate: string | null) =>
+    dueDate
+      ? `${dueDate.length == 1 ? "0" + dueDate : dueDate}${new Date().toLocaleDateString("pt-br").substring(2, 10)}`
+      : null;
+
+  const renderAmount = (debit: Debit, tone: string) =>
+    editingId === debit.id ? (
+      <input
+        type="number"
+        className="input w-32 py-1.5"
+        value={editingValues[debit.id] ?? debit.value}
+        onChange={(e) => handleValueChange(debit.id, e.target.value)}
+      />
+    ) : (
+      <span className={`font-semibold tabular-nums ${tone}`}>{brl(debit.value)}</span>
+    );
+
+  const renderActions = (debit: Debit) => (
+    <>
+      {debit.installments ? (
+        anticipatingId === debit.id ? (
+          <>
+            <select
+              value={anticipateCount}
+              onChange={(e) => setAnticipateCount(Number(e.target.value))}
+              className="input w-auto py-1"
+            >
+              {Array.from({ length: debit.installments - debit.current }, (_, i) => i + 1).map((num) => (
+                <option key={num} value={num}>
+                  {num}x
+                </option>
+              ))}
+            </select>
+            <button className="btn btn-primary btn-sm" onClick={() => handleAnticipateInstallments(debit)}>
+              Confirmar
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setAnticipatingId(null)}>
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <button className="btn btn-secondary btn-sm" onClick={() => setAnticipatingId(debit.id)}>
+            Antecipar
+          </button>
+        )
+      ) : editingId === debit.id ? (
+        <>
+          <button className="btn btn-primary btn-sm" onClick={() => handleSaveValue(debit.id)}>
+            Salvar
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
+            Cancelar
+          </button>
+        </>
+      ) : (
+        <button className="btn btn-secondary btn-sm" onClick={() => setEditingId(debit.id)}>
+          Alterar valor
+        </button>
+      )}
+
+      <button
+        type="button"
+        title="Excluir"
+        className="icon-btn hover:bg-rose-50 hover:text-rose-600"
+        onClick={() => setConfirmDelete(debit.id)}
+      >
+        <HiOutlineTrash className="h-4 w-4" />
+      </button>
+    </>
+  );
+
+  const renderGroup = (debit: Debit, clickable: boolean) =>
+    debit.group ? (
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          title="Remover grupo"
+          onClick={() => deletedGroupName(debit.id)}
+          className="icon-btn p-1 hover:text-rose-600"
+        >
+          <HiXMark className="h-3.5 w-3.5" />
+        </button>
+        <EntityTag
+          kind="group"
+          name={debit.group}
+          iconOnly
+          title={clickable ? `Agrupar por ${findGroup(debit.group)?.label ?? debit.group}` : undefined}
+          onClick={clickable ? () => handleSortGroup(debit.group!) : undefined}
+        />
+      </div>
+    ) : (
+      <button
+        type="button"
+        title="Vincular grupo"
+        onClick={() => {
+          setSelectGroup(debit.id);
+        }}
+        className={placeholderClass}
+      >
+        <HiOutlineTag className="h-4 w-4" />
+      </button>
+    );
+
+  const paidPercent = total > 0 ? Math.round((totalPagos / total) * 100) : 0;
 
   return (
     <>
-          {loading && (
-                    <Background>
-                      <div className='w-full h-full my-auto'>
+      {loading && (
+        <Background>
+          <Spinner />
+        </Background>
+      )}
 
-                    <img className='py-[250px] md:py-[200px] mx-auto h-full my-auto' src={coinGif} alt="" />
-                      </div>
-                  </Background>
-          )}
-        <div className="p-4 bg-indigo-950 h-[100%] min-h-screen w-[100%] py-16">
-      <div className="p-6 bg-gray-100  rounded-md max-w-[1500px] mx-auto py-16">
-        <p className="text-2xl font-bold  text-indigo-900 text-center">
-          DEBITOS MENSAIS{" "}
-        </p>
-        <p className="text-2xl font-bold mb-4 text-indigo-900 text-center">
-          {new Date()
-            .toLocaleString("pt-BR", { month: "long", year: "numeric" })
-            .toUpperCase()}
-        </p>
-        <div className="font-bold bg-white justify-between rounded flex flex-wrap shadow-md p-4 mb-6 gap-6 mx-auto">
-          <div className="mx-auto flex justify-between w-[250px w-[250px]">
-            <div className="flex gap-5 ">
-              <GrMoney className="w-[40px] h-auto text-yellow-500" />
-              <p className="my-auto">TOTAL</p>
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+
+        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-indigo-600">Débitos mensais</p>
+              <h1 className="text-2xl font-semibold text-slate-900">{monthLabel()}</h1>
             </div>
-
-            <label className="text-blue-700 my-auto">
-              {total.toLocaleString("pt-br", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </label>
-          </div>
-
-          <div className="mx-auto flex justify-between w-[250px] ">
-            <div className="flex gap-6 ">
-              <RiMoneyDollarCircleFill className="w-[40px] h-auto text-green-500" />
-              <p className="my-auto">PAGO</p>
-            </div>
-            <label className=" text-green-500 my-auto">
-              {totalPagos.toLocaleString("pt-br", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </label>
-          </div>
-          <div className="mx-auto flex justify-between w-[250px]">
-            <div className="flex gap-2 ">
-              <RiMoneyDollarBoxFill className="w-[40px] h-auto text-red-500" />
-              <p className="my-auto">À PAGAR</p>
-            </div>
-            <label className="text-red-500 my-auto">
-              {totalNaoPagos.toLocaleString("pt-br", {
-                style: "currency",
-                currency: "BRL",
-              })}
-            </label>
-          </div>
-        </div>
-
-        {!addDebit ? (
-          <div className="mb-4 mt-6 flex flex-col md:flex-row  justify-between gap-2">
-            <button
-              onClick={() => setAddDebit('current')}
-              className="p-2 text-white bg-red-600 hover:bg-red-700 font-bold rounded "
-            >
-              ADICIONAR DÉBITO
-            </button>
-            <button
-            disabled = {cards.length== 0}
-              onClick={() => setAddDebit('future')}
-              className="p-2 text-white bg-yellow-500 hover:bg-yellow-600 font-bold rounded "
-            >
-              LANÇAMENTO FUTURO
-            </button>
-            {!showFuture && (
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={async () => {
                   await handleFutureDebits();
                   setShowFuture(true);
                 }}
-                className=" p-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded"
+                className="btn btn-ghost"
               >
-                PREVIEW{' '}
-                {new Date(new Date().setMonth(new Date().getMonth() + 1))
-                  .toLocaleDateString("pt-BR", {
-                    month: "long",
-                    year: "numeric",
-                  })
-                  .toUpperCase()
-                  .replace(" DE ", " / ")}
+                <HiOutlineEye className="h-4 w-4" />
+                Prévia de {monthLabel(1).split(" ")[0].toLowerCase()}
               </button>
-            )}
+              <button
+                disabled={cards.length == 0}
+                onClick={() => setAddDebit("future")}
+                className="btn btn-secondary"
+              >
+                <HiOutlineCalendarDays className="h-4 w-4" />
+                Lançamento futuro
+              </button>
+              <button onClick={() => setAddDebit("current")} className="btn btn-primary">
+                <HiOutlinePlus className="h-4 w-4" />
+                Adicionar débito
+              </button>
+            </div>
           </div>
-        ) : (
-          <Background>
-            <DebitForm
-              type={addDebit}
-              onSuccess={fetchDebits}
-              cards = {cards}
-              setAddDebit={setAddDebit}
-              monthId={idMonth || ""}
-            />
-          </Background>
-        )}
-        
-        <h2 className="text-xl font-semibold  text-indigo-900">SEUS DÉBITOS</h2>
-        
 
-        {showFuture && (
-          <Background>
-            <div className="mt-14 max-w-[650px] mb-14  mx-auto p-4 bg-white rounded">
-              <p className="text-lg font-bold text-center text-indigo-800">
-                Próximo Faturamento (Simulado)
+          <div className="mb-8 grid gap-4 sm:grid-cols-3">
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-500">Total do mês</p>
+                <span className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                  <HiOutlineBanknotes className="h-5 w-5" />
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{brl(total)}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {debits.length} {debits.length === 1 ? "lançamento" : "lançamentos"}
               </p>
-              <p className="text-xl mb-2 font-bold text-center text-indigo-800">
-                {new Date(new Date().setMonth(new Date().getMonth() + 1))
-                  .toLocaleDateString("pt-BR", {
-                    month: "long",
-                    year: "numeric",
-                  })
-                  .toUpperCase()
-                  .replace(" DE ", " / ")}
-              </p>
-              <ul className="space-y-2">
-                <div className="w-full mt-4 overflow-x-auto">
-                  <table className="min-w-full border-collapse bg-white shadow rounded-lg">
-                    <thead className="">
-                      <tr className="bg-indigo-950 text-white ">
-                        <th className="px-4 py-2 min-w-[300px] text-left">
-                          Descrição
-                        </th>
-                        <th className="px-4 py-2 min-w-[250px] text-left">
-                          Valor
-                        </th>
-                        <th className="px-4 py-2 text-left min-w-[150px]">
-                          Parcela
-                        </th>
+            </div>
+
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-500">Pago</p>
+                <span className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
+                  <HiOutlineCheckCircle className="h-5 w-5" />
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-600">{brl(totalPagos)}</p>
+              <div className="mt-3 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all"
+                    style={{ width: `${paidPercent}%` }}
+                  />
+                </div>
+                <span className="text-xs tabular-nums text-slate-500">{paidPercent}%</span>
+              </div>
+            </div>
+
+            <div className="card p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-500">A pagar</p>
+                <span className="rounded-lg bg-amber-50 p-2 text-amber-600">
+                  <HiOutlineClock className="h-5 w-5" />
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums text-amber-600">{brl(totalNaoPagos)}</p>
+            </div>
+          </div>
+
+          {addDebit && (
+            <Background>
+              <DebitForm
+                type={addDebit}
+                onSuccess={fetchDebits}
+                cards={cards}
+                setAddDebit={setAddDebit}
+                monthId={idMonth || ""}
+              />
+            </Background>
+          )}
+
+          {showFuture && (
+            <Background>
+              <div className="modal max-w-2xl">
+                <div className="mb-5 flex items-start justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Prévia do próximo mês</h2>
+                    <p className="text-sm text-slate-500">{monthLabel(1)} · simulado</p>
+                  </div>
+                  <button type="button" className="icon-btn" onClick={() => setShowFuture(false)}>
+                    <HiXMark className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="th">Descrição</th>
+                        <th className="th">Parcela</th>
+                        <th className="th text-right">Valor</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {futureDebits.map((debit) => (
-                        <tr
-                          key={debit.id}
-                          className={"border-t border-gray-400 bg-gray-200"}
-                        >
-                          <td className="px-4 py-2 font-medium  uppercase max-w-xs break-words">
-                            {debit.description}
+                        <tr key={debit.id} className="hover:bg-slate-50">
+                          <td className="td font-medium text-slate-900">{debit.description}</td>
+                          <td className="td text-slate-600">
+                            {debit.installments ? `${debit.current}/${debit.installments}` : "Avulso"}
                           </td>
-                          <td className="px-4 py-2 font-medium  uppercase max-w-xs break-words">
-                            <p className={"font-bold "}>
-                              {debit.value.toLocaleString("pt-br", {
-                                style: "currency",
-                                currency: "BRL",
-                              })}
-                            </p>
-                          </td>
-                          <td className="px-4 py-2">
-                            {debit.installments
-                              ? `Parcela ${debit.current}/${debit.installments}`
-                              : "Avulso"}
+                          <td className="td text-right font-semibold tabular-nums text-slate-900">
+                            {brl(debit.value)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot className="bg-slate-50">
+                      <tr>
+                        <td className="td font-semibold text-slate-700" colSpan={2}>Total previsto</td>
+                        <td className="td text-right text-base font-semibold tabular-nums text-indigo-600">
+                          {brl(futureValue)}
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
-              </ul>
-              <div className="p-4 text-right">
-                <p className="font-bold text-lg text-orange-700">
-                  {futureValue.toLocaleString("pt-br", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </p>
+
+                <div className="mt-6 flex justify-end">
+                  <button onClick={() => setShowFuture(false)} className="btn btn-secondary">
+                    Fechar
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setShowFuture(false)}
-                className="bg-yellow-600 p-2 text-white font-bold hover:bg-yellow-800 rounded "
-              >
-                FECHAR
-              </button>
-            </div>
-          </Background>
-        )}
-        {selectCard && (
-          <Background>
-            <div className="mt-14 max-w-[350px] gap-6  mx-auto p-4 bg-white rounded flex flex-col">
-              <p className="text-lg font-bold text-center text-indigo-800">
-                SELECIONE O CARTÃO DE CRÉDITO
-              </p>
-              <select
-                value={""}
-                onChange={(e) => setSelectedCardName(e.target.value)}
-                className="border text-gray-500 border-gray-600 rounded px-3 py-2"
-              >
-                <option value="">Selecione o cartão</option>
-                {cards.map((cards) => (
-                  <option key={cards.id} value={cards.name}>
-                    {cards.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setSelectCard(null)}
-                className="bg-yellow-500 p-2 text-white font-bold hover:bg-yellow-600 rounded "
-              >
-                FECHAR
-              </button>
-            </div>
-          </Background>
-        )}
-        {selectGroup && (
-          <Background>
-            <div className="mt-14 max-w-[350px] gap-6  mx-auto p-4 bg-white rounded flex flex-col">
-              <p className="text-lg font-bold text-center text-indigo-800">
-                SELECIONE O GRUPO
-              </p>
-              <select
-                value={""}
-                onChange={(e) => setSelectedGroupName(e.target.value)}
-                className="border text-gray-500 border-gray-600 rounded px-3 py-2"
-              >
-                <option value="">Selecione um grupo</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.name}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setSelectGroup(null)}
-                className="bg-yellow-500 p-2 text-white font-bold hover:bg-yellow-600 rounded "
-              >
-                FECHAR
-              </button>
-            </div>
-          </Background>
-        )}
-        {debits.length === 0 ? (
-          <p className="text-gray-500">{loading? "Carregando . . ." : "Nenhuma dívida cadastrada." }</p>
-        ) : (
-          <div className="w-full mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse bg-white shadow rounded-lg">
-              <thead>
-                <tr className="bg-indigo-950 text-white">
-                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">
-                    Pago{" "}
-                    <PiArrowsDownUpBold
-                      onClick={() => {
-                        handleSort("paid");
-                      }}
-                      className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"
+            </Background>
+          )}
+
+          {selectCard && (
+            <Background>
+              <div className="modal max-w-sm">
+                <h2 className="text-lg font-semibold text-slate-900">Vincular cartão</h2>
+                <p className="mb-4 text-sm text-slate-500">Escolha o cartão de crédito deste débito.</p>
+                <select
+                  value={""}
+                  onChange={(e) => setSelectedCardName(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Selecione o cartão</option>
+                  {cards.map((cards) => (
+                    <option key={cards.id} value={cards.name}>
+                      {cards.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-6 flex justify-end">
+                  <button onClick={() => setSelectCard(null)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </Background>
+          )}
+
+          {selectGroup && (
+            <Background>
+              <div className="modal max-w-sm">
+                <h2 className="text-lg font-semibold text-slate-900">Vincular grupo</h2>
+                <p className="mb-4 text-sm text-slate-500">Escolha o grupo deste débito.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {GROUPS.map((group) => (
+                    <button
+                      key={group.name}
+                      type="button"
+                      onClick={() => setSelectedGroupName(group.name)}
+                      className="flex items-center gap-2.5 rounded-lg border border-slate-200 p-2 text-left text-sm font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50"
+                    >
+                      <EntityTag kind="group" name={group.name} iconOnly />
+                      <span className="leading-tight">{group.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button onClick={() => setSelectGroup(null)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </Background>
+          )}
+
+          {openBill && (
+            <Background>
+              <div className="modal max-w-3xl">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <EntityTag
+                      kind="card"
+                      name={openBill.card}
+                      icon={cardInfo(openBill.card)?.icon}
+                      color={cardInfo(openBill.card)?.color}
+                      size="lg"
+                      iconOnly
                     />
-                  </th>
-                  <th className="border-r border-r-white px-4 py-2 min-w-[350px] text-left">
-                    Descrição
-                  </th>
-                  <th className="px-4 pr-8 min-w-[290px]  py-2 text-left border-r border-r-white relative">
-                    Valor{" "}
-                    <PiArrowsDownUpBold
-                      onClick={() => {
-                        handleSort("value");
-                      }}
-                      className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"
-                    />
-                  </th>
-                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">
-                    Vencimento{" "}
-                    <PiArrowsDownUpBold
-                      onClick={() => {
-                        handleSort("due_date");
-                      }}
-                      className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"
-                    />
-                  </th>
-                  <th className="px-4 pr-8  py-2 text-left border-r border-r-white relative">
-                    Parcela{" "}
-                    <PiArrowsDownUpBold
-                      onClick={() => {
-                        handleSort("installments");
-                      }}
-                      className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"
-                    />
-                  </th>
-                  <th className="px-4 py-2 pr-8 min-w-[150px] text-left border-r relative border-r-white">
-                    Tipo{" "}
-                    <PiArrowsDownUpBold
-                      onClick={() => {
-                        handleSort("recurring");
-                      }}
-                      className="rounded-full bg-white text-indigo-950 p-[1px] hover:bg-yellow-500 hover:text-white cursor-pointer my-auto absolute top-3 right-2"
-                    />
-                  </th>
-                  <th className="px-4 py-2 text-left">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {debits.map((debit) => (
-                  <tr
-                    key={debit.id}
-                    className={
-                      debit.paid
-                        ? "border-t border-gray-400 bg-green-200"
-                        : debit.description.includes("byduuid")
-                        ? "border-t border-gray-400 bg-indigo-200"
-                        : "border-t border-gray-400 bg-white"
-                    }
-                  >
-                    <td className="px-4 py-2 ">
-                      {!debit.description.includes("byduuid") && (
-                        <input
-                          type="checkbox"
-                          checked={!!debit.paid}
-                          onChange={() =>
-                            handleTogglePaid(debit.id, !debit.paid)
-                          }
-                          className="w-5 h-5 my-auto cursor-pointer"
-                        />
-                      )}
-                    </td>
-                    <td className=" py-2 font-medium  uppercase  break-words flex  justify-between">
-                      <label className="my-auto">
-                        {debit.description.replace("byduuid", "")}
-                      </label>
-                      {debit.group ? (
-                        (() => {
-                          const grupo = groups.find(
-                            (g) => g.name === debit.group
-                          );
-                          return grupo ? (
-                            <div className="flex ">
-                              {!debit.description.includes("byduuid") && (
-                                <RiDeleteBackFill
-                                  onClick={() => deletedGroupName(debit.id)}
-                                  className="text-orange-600 hover:text-red-700 cursor-pointer"
-                                />
-                              )}
-                              <img
-                                onClick={() => {
-                                  handleSortGroup(grupo.name);
-                                }}
-                                className={debit.description.includes("byduuid") ?"h-[100px] bg-white  w-auto cursor-pointer rounded ring ring-yellow-500":"h-[40px] bg-white max-w-[80%] w-auto cursor-pointer rounded ring ring-yellow-500"}
-                                src={grupo.image}
-                                alt={grupo.name}
-                              />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-slate-900">Fatura {openBill.card}</h2>
+                        {openBillPaid && <span className="badge bg-emerald-100 text-emerald-700">Paga</span>}
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        {monthLabel()} · {openBill.items.length} {openBill.items.length === 1 ? "compra" : "compras"}
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" className="icon-btn" onClick={() => setOpenCard(null)}>
+                    <HiXMark className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="th min-w-[220px]">Descrição</th>
+                        <th className="th">Parcela</th>
+                        <th className="th">Valor</th>
+                        <th className="th text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {openBill.items.map((debit) => (
+                        <tr key={debit.id} className={debit.paid ? "bg-emerald-50/60" : "hover:bg-slate-50"}>
+                          <td className="td">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className={`font-medium ${debit.paid ? "text-slate-500" : "text-slate-900"}`}>
+                                {debit.description}
+                              </span>
+                              {renderGroup(debit, false)}
                             </div>
-                          ) : null;
-                        })()
-                      ) : (
-                        <div className="p-1">
-                          <MdOutlineAddPhotoAlternate
-                            onClick={() => {
-                              setSelectGroup(debit.id);
-                            }}
-                            className="w-[30px] text-gray-500 cursor-pointer hover:text-yellow-500 h-auto"
-                          />
-                        </div>
-                      )}
-                    </td>
-                    <td className=" px-2 py-2">
-                      {editingId === debit.id ? (
-                        <input
-                          type="number"
-                          className="border p-1 rounded w-24"
-                          value={editingValues[debit.id] ?? debit.value}
-                          onChange={(e) =>
-                            handleValueChange(debit.id, e.target.value)
-                          }
-                        />
-                      ) : (
-                        <div
-                          className={
-                            debit.description.includes("byduuid")
-                              ? "font-bold text-blue-800 flex justify-between"
-                              : debit.paid
-                              ? "font-bold text-green-700 flex justify-between"
-                              : !debit.paid
-                              ? "font-bold text-orange-500 flex justify-between"
-                              : ""
-                          }
-                        >
-                          <p className="my-auto">
-                            {debit.value.toLocaleString("pt-br", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                          </p>
-                          {debit.credit_card ? (
-                            (() => {
-                              const card = cards.find(
-                                (g) => g.name === debit.credit_card
-                              );
-                              return card ? (
-                                <div className="flex ">
-                                  {!debit.description.includes("byduuid") && (
-                                    <RiDeleteBackFill
-                                      onClick={() => deletedCardName(debit.id)}
-                                      className="text-orange-600 hover:text-red-700 cursor-pointer"
+                          </td>
+                          <td className="td">
+                            {debit.installments ? (
+                              <span className="badge bg-slate-100 tabular-nums text-slate-700">
+                                {debit.current}/{debit.installments}
+                              </span>
+                            ) : debit.recurring ? (
+                              <span className="badge bg-indigo-50 text-indigo-700">
+                                <HiOutlineArrowPath className="h-3 w-3" />
+                                Recorrente
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">Avulso</span>
+                            )}
+                          </td>
+                          <td className="td">
+                            {renderAmount(debit, debit.paid ? "text-emerald-700" : "text-slate-900")}
+                          </td>
+                          <td className="td">
+                            <div className="flex items-center justify-end gap-2">
+                              {renderActions(debit)}
+                              <button
+                                type="button"
+                                title="Tirar do cartão"
+                                className="icon-btn"
+                                onClick={() => deletedCardName(debit.id)}
+                              >
+                                <HiOutlineArrowUturnLeft className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50">
+                      <tr>
+                        <td className="td font-semibold text-slate-700" colSpan={2}>Total da fatura</td>
+                        <td className="td text-base font-semibold tabular-nums text-slate-900" colSpan={2}>
+                          {brl(openBill.total)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button onClick={() => setOpenCard(null)} className="btn btn-secondary">
+                    Fechar
+                  </button>
+                  {openBillPaid ? (
+                    <button onClick={() => handlePayCard(openBill.items, false)} className="btn btn-secondary">
+                      Desmarcar pagamento
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handlePayCard(openBill.items, true)}
+                      className="btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                    >
+                      <HiOutlineCheckCircle className="h-4 w-4" />
+                      Pagar fatura · {brl(openBill.total - openBill.items.filter((i) => i.paid).reduce((acc, i) => acc + i.value, 0))}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Background>
+          )}
+
+          {confirmDelete && (
+            <Background>
+              <div className="modal max-w-sm">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                  <HiOutlineTrash className="h-5 w-5" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">Excluir débito?</h2>
+                <p className="mt-1 text-sm text-slate-500">Essa ação não pode ser desfeita.</p>
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setConfirmDelete(null);
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleDelete(confirmDelete);
+                      setConfirmDelete(null);
+                    }}
+                    className="btn btn-danger"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </Background>
+          )}
+
+          <section className="card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">Seus débitos</h2>
+              {activeGrouping && (
+                <span className="badge bg-indigo-50 text-indigo-700">
+                  Agrupado por {activeGrouping.value}
+                </span>
+              )}
+            </div>
+
+            {debits.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <span className="mb-3 rounded-full bg-slate-100 p-3 text-slate-400">
+                  <HiOutlineInboxStack className="h-6 w-6" />
+                </span>
+                <p className="text-sm font-medium text-slate-900">
+                  {loading ? "Carregando..." : "Nenhum débito cadastrado"}
+                </p>
+                {!loading && (
+                  <p className="mt-1 text-sm text-slate-500">Adicione o primeiro débito do mês para começar.</p>
+                )}
+              </div>
+            ) : (
+              <>
+                {cardBills.length > 0 && (
+                  <div className="border-b border-slate-200">
+                    <p className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Cartões
+                    </p>
+                    <ul className="divide-y divide-slate-100">
+                      {cardBills.map((bill) => {
+                        const info = cardInfo(bill.card);
+                        const allPaid = bill.paidCount === bill.items.length;
+                        const dueDay = info?.due_day ? String(info.due_day) : bill.items.find((i) => i.due_date)?.due_date ?? null;
+                        const due = formatDue(dueDay);
+                        const status = dueStatus(dueDay, allPaid);
+
+                        return (
+                          <li
+                            key={bill.card}
+                            className={`flex items-center gap-4 px-5 py-3 ${allPaid ? "bg-emerald-50/60" : `hover:bg-slate-50 ${dueBar(status)}`}`}
+                          >
+                            <input
+                              type="checkbox"
+                              title={status?.label ?? (allPaid ? "Desmarcar pagamento da fatura" : "Pagar fatura inteira")}
+                              checked={allPaid}
+                              onChange={() => handlePayCard(bill.items, !allPaid)}
+                              className="h-4 w-4 shrink-0 cursor-pointer accent-emerald-600"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setOpenCard(bill.card)}
+                              className="group flex min-w-0 flex-1 items-center gap-3 text-left"
+                            >
+                              <EntityTag kind="card" name={bill.card} icon={info?.icon} color={info?.color} iconOnly />
+                              <div className="min-w-0">
+                                <p className={`truncate font-medium group-hover:text-indigo-700 ${allPaid ? "text-slate-500" : "text-slate-900"}`}>
+                                  Fatura {bill.card}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {bill.items.length} {bill.items.length === 1 ? "compra" : "compras"}
+                                  {bill.paidCount > 0 && !allPaid && ` · ${bill.paidCount} paga${bill.paidCount > 1 ? "s" : ""}`}
+                                  {due && ` · vence ${due}`}
+                                </p>
+                              </div>
+                            </button>
+
+                            {allPaid && <span className="badge hidden bg-emerald-100 text-emerald-700 sm:inline-flex">Paga</span>}
+                            {status && <span className="hidden sm:inline-flex">{dueBadge(status)}</span>}
+                            <span className={`text-right font-semibold tabular-nums ${allPaid ? "text-emerald-700" : "text-slate-900"}`}>
+                              {brl(bill.total)}
+                            </span>
+                            <button
+                              type="button"
+                              title="Ver compras"
+                              onClick={() => setOpenCard(bill.card)}
+                              className="icon-btn"
+                            >
+                              <HiChevronRight className="h-5 w-5" />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {debitRows.length > 0 && (
+                  <>
+                    {cardBills.length > 0 && (
+                      <p className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Outros débitos
+                      </p>
+                    )}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            {sortableTh("paid", "Pago", "w-20")}
+                            <th className="th min-w-[300px]">Descrição</th>
+                            {sortableTh("value", "Valor", "min-w-[220px]")}
+                            {sortableTh("due_date", "Vencimento")}
+                            {sortableTh("installments", "Parcela")}
+                            {sortableTh("recurring", "Tipo")}
+                            <th className="th text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {debitRows.map((debit) => {
+                            const isGrouped = debit.description.includes("byduuid");
+                            const status = isGrouped ? null : dueStatus(debit.due_date, debit.paid);
+
+                            return (
+                              <tr
+                                key={debit.id}
+                                className={
+                                  isGrouped
+                                    ? "bg-indigo-50/70"
+                                    : debit.paid
+                                    ? "bg-emerald-50/60"
+                                    : "hover:bg-slate-50"
+                                }
+                              >
+                                <td className={`td ${dueBar(status)}`}>
+                                  {!isGrouped && (
+                                    <input
+                                      type="checkbox"
+                                      title={status?.label}
+                                      checked={!!debit.paid}
+                                      onChange={() => handleTogglePaid(debit.id, !debit.paid)}
+                                      className="h-4 w-4 cursor-pointer accent-emerald-600"
                                     />
                                   )}
-                                  <img
-                                    onClick={() => {
-                                      handleSortCard(card.name);
-                                    }}
-                                    className={debit.description.includes("byduuid") ?"h-[100px] bg-white  w-auto cursor-pointer rounded ring ring-yellow-500":"h-[40px] bg-white max-w-[80%] w-auto cursor-pointer rounded ring ring-yellow-500"}
-                                    src={card.image}
-                                    alt={card.name}
-                                  />
-                                </div>
-                              ) : null;
-                            })()
-                          ) : (
-                            <div className="p-1">
-                              <MdOutlineAddCard
-                                onClick={() => {
-                                  setSelectCard(debit.id);
-                                }}
-                                className="w-[30px] text-gray-500 cursor-pointer hover:text-yellow-500 h-auto"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {debit.due_date && !debit.description.includes("byduuid")
-                        ? `${
-                            debit.due_date.length == 1
-                              ? "0" + debit.due_date
-                              : debit.due_date
-                          }${new Date()
-                            .toLocaleDateString("pt-br")
-                            .substring(2, 10)}`
-                        : "- - -"}
-                    </td>
-                    <td className="px-4 py-2">
-                      {debit.installments &&
-                      !debit.description.includes("byduuid")
-                        ? `Parcela ${debit.current}/${debit.installments}`
-                        : !debit.description.includes("byduuid")
-                        ? "Avulso"
-                        : "- - -"}
-                    </td>
-                    <td className="px-4 py-2 text-sm">
-                      {debit.recurring ? "🔁 Recorrente" : "- - -"}
-                    </td>
-                    <td className="px-4 py-2 space-x-2 space-y-2 flex justify-between">
-                      {/* Parcelado: Antecipar */}
-                      {debit.installments &&
-                      !debit.description.includes("byduuid") ? (
-                        anticipatingId === debit.id ? (
-                          <div className="flex gap-2 items-center">
-                            <select
-                              value={anticipateCount}
-                              onChange={(e) =>
-                                setAnticipateCount(Number(e.target.value))
-                              }
-                              className="border rounded px-2 py-1"
-                            >
-                              {Array.from(
-                                { length: debit.installments - debit.current },
-                                (_, i) => i + 1
-                              ).map((num) => (
-                                <option key={num} value={num}>
-                                  {num}x
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              className="bg-green-500 text-white text-sm px-3 py-1 rounded hover:bg-green-600"
-                              onClick={() =>
-                                handleAnticipateInstallments(debit)
-                              }
-                            >
-                              Confirmar
-                            </button>
-                            <button
-                              className="bg-red-500 text-white text-sm px-3 py-1 rounded hover:bg-red-600"
-                              onClick={() => setAnticipatingId(null)}
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="bg-yellow-500 text-white min-w-[120px] px-2 py-1 font-bold rounded hover:bg-yellow-600"
-                            onClick={() => setAnticipatingId(debit.id)}
-                          >
-                            Antecipar
-                          </button>
-                        )
-                      ) : editingId === debit.id &&
-                        !debit.description.includes("byduuid") ? (
-                        <div className="inline-flex gap-1">
-                          <button
-                            className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-sm"
-                            onClick={() => handleSaveValue(debit.id)}
-                          >
-                            Salvar
-                          </button>
-                          <button
-                            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-sm"
-                            onClick={() => setEditingId(null)}
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          {!debit.description.includes("byduuid") && (
-                            <button
-                              className="bg-blue-500 min-w-[120px] text-white px-2 py-1 font-bold rounded hover:bg-blue-600"
-                              onClick={() => setEditingId(debit.id)}
-                            >
-                              Alterar Valor
-                            </button>
-                          )}
-                        </>
-                      )}
+                                </td>
 
-                      {/* Botão Excluir */}
-                      {confirmDelete && (
-                        <Background>
-                          <div className="bg-white max-w-[350px] p-6 rounded mx-auto mt-16 text-center ">
-                            <p className="font-bold text-xl text-indigo-900">
-                              Confirma a Exclusão do Débito?
-                            </p>
-                            <div className="flex justify-between mt-8 px-8">
-                              <button
-                                onClick={() => {
-                                  handleDelete(confirmDelete);
-                                  setConfirmDelete(null);
-                                }}
-                                className="p-2 font-bold text-white bg-green-600 rounded w-[70px]"
-                              >
-                                SIM
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setConfirmDelete(null);
-                                }}
-                                className="p-2 font-bold text-white bg-red-600 rounded w-[70px]"
-                              >
-                                NÃO
-                              </button>
-                            </div>
-                          </div>
-                        </Background>
-                      )}
-                      {!debit.description.includes("byduuid") && (
-                        <AiFillDelete
-                          className="text-red-800 h-[20px] w-[20px] cursor-pointer"
-                          onClick={() => setConfirmDelete(debit.id)}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                                <td className="td">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span
+                                      className={`uppercase ${
+                                        isGrouped
+                                          ? "font-semibold text-indigo-900"
+                                          : debit.paid
+                                          ? "font-medium text-slate-500"
+                                          : "font-medium text-slate-900"
+                                      }`}
+                                    >
+                                      {debit.description.replace("byduuid", "")}
+                                    </span>
+                                    {isGrouped ? (
+                                      <EntityTag
+                                        kind="group"
+                                        name={debit.group ?? ""}
+                                        iconOnly
+                                        title="Desagrupar"
+                                        onClick={() => handleSortGroup(debit.group!)}
+                                      />
+                                    ) : (
+                                      renderGroup(debit, true)
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="td">
+                                  <div className="flex items-center justify-between gap-3">
+                                    {renderAmount(
+                                      debit,
+                                      isGrouped ? "text-indigo-700" : debit.paid ? "text-emerald-700" : "text-slate-900"
+                                    )}
+                                    {!isGrouped && editingId !== debit.id && (
+                                      <button
+                                        type="button"
+                                        title="Lançar no cartão"
+                                        onClick={() => {
+                                          setSelectCard(debit.id);
+                                        }}
+                                        className={placeholderClass}
+                                      >
+                                        <HiOutlineCreditCard className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="td tabular-nums text-slate-600">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {(!isGrouped && formatDue(debit.due_date)) || <span className="text-slate-300">—</span>}
+                                    {dueBadge(status)}
+                                  </div>
+                                </td>
+
+                                <td className="td">
+                                  {isGrouped ? (
+                                    <span className="text-slate-300">—</span>
+                                  ) : debit.installments ? (
+                                    <span className="badge bg-slate-100 tabular-nums text-slate-700">
+                                      {debit.current}/{debit.installments}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500">Avulso</span>
+                                  )}
+                                </td>
+
+                                <td className="td">
+                                  {debit.recurring ? (
+                                    <span className="badge bg-indigo-50 text-indigo-700">
+                                      <HiOutlineArrowPath className="h-3 w-3" />
+                                      Recorrente
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+
+                                <td className="td">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {!isGrouped && renderActions(debit)}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </section>
+        </main>
       </div>
-    </div>
     </>
   );
 }

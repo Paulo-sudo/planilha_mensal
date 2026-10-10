@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '../supabase_client';
 import { useNavigate } from 'react-router-dom';
+import { HiOutlineWallet } from 'react-icons/hi2';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,41 +34,52 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-indigo-950 p-4">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
-      >
-        <h2 className="text-2xl font-bold mb-4 text-center">Login</h2>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+            <HiOutlineWallet className="h-6 w-6" />
+          </div>
+          <h1 className="text-xl font-semibold text-slate-900">Planilha Mensal</h1>
+          <p className="mt-1 text-sm text-slate-500">Entre para acessar seus débitos</p>
+        </div>
 
-        <label className="block mb-2 text-sm font-medium">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded mb-4"
-          required
-        />
+        <form onSubmit={handleLogin} className="card space-y-4 p-6">
+          <div>
+            <label className="label">E-mail</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="voce@exemplo.com"
+              className="input"
+              required
+            />
+          </div>
 
-        <label className="block mb-2 text-sm font-medium">Senha</label>
-        <input
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded mb-4"
-          required
-        />
+          <div>
+            <label className="label">Senha</label>
+            <input
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              placeholder="••••••••"
+              className="input"
+              required
+            />
+          </div>
 
-        {erro && <p className="text-red-500 text-sm mb-4">{erro}</p>}
+          {erro && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {erro}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition font-bold"
-          disabled={loading}
-        >
-          {loading ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
+          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

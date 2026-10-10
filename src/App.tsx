@@ -7,7 +7,7 @@ function App() {
 
 
   return (
-    <div className="body font-lato">
+    <div className="min-h-screen">
       <Router>
         <Routes>
           {/* Página "Not Found" como rota padrão */}
